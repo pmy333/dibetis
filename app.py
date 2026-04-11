@@ -1,57 +1,100 @@
 import streamlit as st
 import pickle
 import numpy as np
+import pandas as pd
 
-# Load the model
-with open('model (1).pkl', 'rb') as f:
-    model = pickle.load(f)
+# -------------------------------
+# Page Config
+# -------------------------------
+st.set_page_config(
+    page_title="ML Model App",
+    page_icon="🤖",
+    layout="centered"
+)
 
-# Page configuration
-st.set_page_config(page_title="Diabetes Predictor", layout="centered")
+# -------------------------------
+# Load Model
+# -------------------------------
+@st.cache_resource
+def load_model():
+    with open("model.pkl", "rb") as file:
+        return pickle.load(file)
 
-# Custom CSS for a better look
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
-    .result-box { padding: 20px; border-radius: 10px; text-align: center; font-weight: bold; font-size: 24px; }
-    </style>
-    """, unsafe_allow_html=True)
+model = load_model()
 
-st.title("🏥 Diabetes Health Predictor")
-st.write("Enter the patient's clinical metrics below to predict diabetes risk.")
+# -------------------------------
+# Title & Description
+# -------------------------------
+st.title("🤖 Machine Learning Prediction App")
+st.markdown("### Enter input features to get predictions")
 
-# Organizing inputs into columns for a cleaner UI
+st.write("---")
+
+# -------------------------------
+# Input Section (Dynamic Style)
+# -------------------------------
+st.subheader("🔢 Input Features")
+
+# 👉 EDIT THESE based on your model
 col1, col2 = st.columns(2)
 
 with col1:
-    pregnancies = st.number_input("Pregnancies", min_value=0, step=1, help="Number of times pregnant")
-    glucose = st.number_input("Glucose", min_value=0, help="Plasma glucose concentration")
-    blood_pressure = st.number_input("Blood Pressure", min_value=0, help="Diastolic blood pressure (mm Hg)")
-    skin_thickness = st.number_input("Skin Thickness", min_value=0, help="Triceps skin fold thickness (mm)")
+    feature1 = st.number_input("Feature 1", value=0.0)
+    feature2 = st.number_input("Feature 2", value=0.0)
 
 with col2:
-    insulin = st.number_input("Insulin", min_value=0, help="2-Hour serum insulin (mu U/ml)")
-    bmi = st.number_input("BMI", min_value=0.0, format="%.1f", help="Body mass index (weight in kg/(height in m)^2)")
-    dpf = st.number_input("Diabetes Pedigree Function", min_value=0.0, format="%.3f", help="Diabetes pedigree function")
-    age = st.number_input("Age", min_value=0, step=1)
+    feature3 = st.number_input("Feature 3", value=0.0)
+    feature4 = st.number_input("Feature 4", value=0.0)
 
-st.markdown("---")
+# Convert input to array
+input_data = np.array([[feature1, feature2, feature3, feature4]])
 
-if st.button("Analyze Results"):
-    # Prepare the input array
-    features = np.array([[pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, dpf, age]])
-    
-    # Prediction
-    prediction = model.predict(features)
-    probability = model.predict_proba(features)
+st.write("---")
 
-    # Display Result
-    if prediction[0] == 1:
-        st.error("### Result: High Risk of Diabetes")
-        st.write(f"Confidence Level: {probability[0][1]*100:.2f}%")
-    else:
-        st.success("### Result: Low Risk of Diabetes")
-        st.write(f"Confidence Level: {probability[0][0]*100:.2f}%")
+# -------------------------------
+# Prediction Section
+# -------------------------------
+if st.button("🚀 Predict"):
+    try:
+        prediction = model.predict(input_data)
 
-st.info("Disclaimer: This tool is for educational purposes and should not replace professional medical advice.")
+        st.success("✅ Prediction Successful!")
+        st.metric(label="Prediction Result", value=prediction[0])
+
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+
+# -------------------------------
+# Batch Prediction (CSV Upload)
+# -------------------------------
+st.write("---")
+st.subheader("📂 Batch Prediction")
+
+uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+
+if uploaded_file:
+    try:
+        data = pd.read_csv(uploaded_file)
+        preds = model.predict(data)
+
+        data["Prediction"] = preds
+
+        st.write("### 📊 Results")
+        st.dataframe(data)
+
+        csv = data.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="⬇️ Download Results",
+            data=csv,
+            file_name="predictions.csv",
+            mime="text/csv"
+        )
+
+    except Exception as e:
+        st.error(f"❌ Error processing file: {e}")
+
+# -------------------------------
+# Footer
+# -------------------------------
+st.write("---")
+st.caption("Built with ❤️ using Streamlit")
